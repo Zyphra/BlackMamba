@@ -132,6 +132,35 @@ class MambaModel(nn.Module):
         model.load_state_dict(load_state_dict_hf(pretrained_model_name, device=device, dtype=dtype))
         return model
 
+    @classmethod
+    def from_pretrained_checkpoint(cls, checkpoint_name, **kwargs):
+        loaded = torch.load(checkpoint_name, map_location='cpu')
+        args = loaded["args"]
+        model_state_dict = loaded["model"]
+        config = MambaConfig(num_layers=args.num_layers,
+                    hidden_size=args.hidden_size,
+                    state_size= args.state_size,
+                    conv_dimension=args.conv_dimension,
+                    vocab_size=args.padded_vocab_size,
+                    expansion_factor=args.expansion_factor,
+                    mamba_moe_layers=args.mamba_moe_layers,
+                    ffn_hidden_size=args.ffn_hidden_size,
+                    bias = args.add_bias_linear,
+                    add_bias_linear = args.add_bias_linear,
+                    gated_linear_unit = args.swiglu)
+
+        model = MambaModel(config=config, max_sequence_length= args.max_position_embeddings, **kwargs)
+
+        # make keys match
+        model_state_dict["embedding.weight"] = model_state_dict["embedding.word_embeddings.weight"].clone()
+        model_state_dict["output_layer.weight"] = model_state_dict["embedding.word_embeddings.weight"].clone()
+        model_state_dict["embedding.word_embeddings.weight"] = None
+        model_state_dict.pop("embedding.word_embeddings.weight")
+        model_state_dict["embedding.position_embeddings.weight"] = None
+        model_state_dict.pop("embedding.position_embeddings.weight")
+        model.load_state_dict(loaded["model"])
+        return model
+
     def save_pretrained(self, save_directory):
         """
         Minimal implementation of save_pretrained for MambaLMHeadModel.
