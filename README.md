@@ -20,7 +20,11 @@ BlackMamba is an novel architecture which combines state-space models (SSMs) wit
 
 ## Pretrained Models
 
-Our pretrained models are uploaded to [huggingface](LINK): `Zyphra/BlackMamba350m` and `Zyphra/BlackMamba630m`
+Our pretrained models are uploaded to [our HuggingFace](https://huggingface.co/Zyphra): 
+- [BlackMamba 340M/1.5B](https://huggingface.co/Zyphra/BlackMamba-1.5B)*
+- [BlackMamba 630M/2.8B](https://huggingface.co/Zyphra/BlackMamba-2.8B)*
+
+*Since models are MoE, they're named according to `(Forward Pass Parameters) / (Total Parameters)` for clarity.
 
 ## Usage
 
