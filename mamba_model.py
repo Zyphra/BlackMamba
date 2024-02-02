@@ -11,7 +11,11 @@ from mamba_block import MambaBlock, MambaDecoder
 from mamba_config import MambaConfig
 from hf_utils import *
 import os, json
+from transformers.utils import WEIGHTS_NAME, CONFIG_NAME
+from transformers.utils.hub import cached_file
 
+
+# https://github.com/huggingface/transformers/blob/c28d04e9e252a1a099944e325685f14d242ecdcd/src/transformers/models/gpt2/modeling_gpt2.py#L454
 def _init_weights(
     module,
     n_layer,
@@ -27,8 +31,18 @@ def _init_weights(
         nn.init.normal_(module.weight, std=initializer_range)
 
     if rescale_prenorm_residual:
+        # Reinitialize selected weights subject to the OpenAI GPT-2 Paper Scheme:
+        #   > A modified initialization which accounts for the accumulation on the residual path with model depth. Scale
+        #   > the weights of residual layers at initialization by a factor of 1/√N where N is the # of residual layers.
+        #   >   -- GPT-2 :: https://openai.com/blog/better-language-models/
+        #
+        # Reference (Megatron-LM): https://github.com/NVIDIA/Megatron-LM/blob/main/megatron/model/gpt_model.py
         for name, p in module.named_parameters():
             if name in ["out_proj.weight", "fc2.weight"]:
+                # Special Scaled Initialization --> There are 2 Layer Norms per Transformer Block
+                # Following Pytorch init, except scale by 1/sqrt(2 * n_layer)
+                # We need to reinit p since this code could be called multiple times
+                # Having just p *= scale would repeatedly scale it down
                 nn.init.kaiming_uniform_(p, a=math.sqrt(5))
                 with torch.no_grad():
                     p /= math.sqrt(n_residuals_per_layer * n_layer)
@@ -59,6 +73,7 @@ class MambaModel(nn.Module):
         if self.pre_process:
             self.embedding = nn.Embedding(self.config.vocab_size, self.config.hidden_size)
 
+
         self.decoder = MambaDecoder(
             config = self.config,
             pre_process = self.pre_process,
@@ -70,6 +85,7 @@ class MambaModel(nn.Module):
             if self.share_embeddings_and_output_weights and (self.pre_process or self.post_process):
                 self.initialize_last_stage_with_word_embeddings()
             
+        # apply weight initialization
         self.apply(
             partial(
                 _init_weights,
@@ -77,7 +93,7 @@ class MambaModel(nn.Module):
                 **(initializer_cfg if initializer_cfg is not None else {}),
             )
         )
-    
+        
     def initialize_last_stage_with_word_embeddings(self):
         with torch.no_grad():
             self.output_layer.weight = self.embedding.weight
@@ -102,34 +118,35 @@ class MambaModel(nn.Module):
             residual=None,
             inference_params=inference_params,
         )
+        
         if not self.post_process:
             return hidden_states
         
         logits = self.output_layer(hidden_states)
 
         return logits.contiguous()
-    
-    @classmethod
-    def from_pretrained(cls, pretrained_model_name, device=None, dtype=None, **kwargs):
-        config_data = load_config_hf(pretrained_model_name)
-        config = MambaConfig(**config_data)
-        model = cls(config, device=device, dtype=dtype, **kwargs)
-        model.load_state_dict(load_state_dict_hf(pretrained_model_name, device=device, dtype=dtype))
-        return model
 
     @classmethod
-    def from_pretrained_checkpoint(cls, checkpoint_name, config_name, **kwargs):
-        loaded = torch.load(checkpoint_name, map_location='cpu')
-        model_state_dict = loaded["model"]
-        with open(config_name, 'r') as f:
-            jsonstr = f.read()
-            json_config = json.loads(jsonstr)
+    def from_pretrained(cls, pretrained_model_name = None,checkpoint_name=None, config_name=None, **kwargs):
+        if pretrained_model_name is not None:
+            json_config = load_config_hf(pretrained_model_name)
+            model_state_dict = load_state_dict_hf(pretrained_model_name)
+        elif checkpoint_name is not None and config_name is not None:
+            with open(config_name, 'r') as f:
+                jsonstr = f.read()
+                json_config = json.loads(jsonstr)
+            loaded = torch.load(checkpoint_name, map_location='cpu')
+            model_state_dict = loaded["model"]
+        else:
+            return
+
+
         config = MambaConfig(
             num_layers=json_config['num_layers'],
             hidden_size=json_config['hidden_size'],
             state_size=json_config['state_size'],
             conv_dimension=json_config['conv_dimension'],
-            vocab_size=json_config['padded_vocab_size'],
+            vocab_size=json_config['vocab_size'],
             expansion_factor=json_config['expansion_factor'],
             mamba_moe_layers=json_config['mamba_moe_layers'],
             ffn_hidden_size=json_config['ffn_hidden_size'],
@@ -149,12 +166,19 @@ class MambaModel(nn.Module):
         return model
 
     def save_pretrained(self, save_directory):
+        """
+        Minimal implementation of save_pretrained for MambaLMHeadModel.
+        Save the model and its configuration file to a directory.
+        """
+        # Ensure save_directory exists
         if not os.path.exists(save_directory):
             os.makedirs(save_directory)
 
+        # Save the model's state_dict
         model_path = os.path.join(save_directory, 'pytorch_model.bin')
         torch.save(self.state_dict(), model_path)
 
+        # Save the configuration of the model
         config_path = os.path.join(save_directory, 'config.json')
         with open(config_path, 'w') as f:
             json.dump(self.config.__dict__, f)
