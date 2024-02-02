@@ -18,6 +18,10 @@ BlackMamba is an novel architecture which combines state-space models (SSMs) wit
 
 `pip install causal-conv1d>=1.1.0`: required for Mamba. The rest of the kernels should be built locally.
 
+Quick installation for a fresh Python environment:
+- `pip install torch packaging`
+- `pip install .` to install from source from this repository
+
 Other requirements:
 
 Linux
