@@ -10,7 +10,6 @@ def load_config_hf(model_name):
     return json.load(open(resolved_archive_file))
 
 
-def load_state_dict_hf(model_name, device=None):
-    mapped_device = "cpu"
+def load_state_dict_hf(model_name, device="cpu"):
     resolved_archive_file = cached_file(model_name, WEIGHTS_NAME, _raise_exceptions_for_missing_entries=False)
-    return torch.load(resolved_archive_file, map_location=mapped_device)
+    return torch.load(resolved_archive_file, map_location=device)
