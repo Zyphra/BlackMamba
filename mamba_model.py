@@ -136,7 +136,7 @@ class MambaModel(nn.Module):
     def from_pretrained_checkpoint(cls, checkpoint_name, config_name, **kwargs):
         loaded = torch.load(checkpoint_name, map_location='cpu')
         model_state_dict = loaded["model"]
-        with open(config_name) as f:
+        with open(config_name, 'r') as f:
             jsonstr = f.read()
             json_config = json.loads(jsonstr)
         config = MambaConfig(
