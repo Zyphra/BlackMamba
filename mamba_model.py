@@ -10,7 +10,7 @@ import os
 from mamba_block import MambaBlock, MambaDecoder
 from mamba_config import MambaConfig
 from hf_utils import *
-import os
+import os, json
 
 
 # https://github.com/huggingface/transformers/blob/c28d04e9e252a1a099944e325685f14d242ecdcd/src/transformers/models/gpt2/modeling_gpt2.py#L454
@@ -133,31 +133,31 @@ class MambaModel(nn.Module):
         return model
 
     @classmethod
-    def from_pretrained_checkpoint(cls, checkpoint_name, **kwargs):
+    def from_pretrained_checkpoint(cls, checkpoint_name, config_name, **kwargs):
         loaded = torch.load(checkpoint_name, map_location='cpu')
-        args = loaded["args"]
         model_state_dict = loaded["model"]
-        config = MambaConfig(num_layers=args.num_layers,
-                    hidden_size=args.hidden_size,
-                    state_size= args.state_size,
-                    conv_dimension=args.conv_dimension,
-                    vocab_size=args.padded_vocab_size,
-                    expansion_factor=args.expansion_factor,
-                    mamba_moe_layers=args.mamba_moe_layers,
-                    ffn_hidden_size=args.ffn_hidden_size,
-                    bias = args.add_bias_linear,
-                    add_bias_linear = args.add_bias_linear,
-                    gated_linear_unit = args.swiglu)
+        json_config = json.loads(config_name)
+        config = MambaConfig(
+            num_layers=json_config['num_layers'],
+            hidden_size=json_config['hidden_size'],
+            state_size=json_config['state_size'],
+            conv_dimension=json_config['conv_dimension'],
+            vocab_size=json_config['padded_vocab_size'],
+            expansion_factor=json_config['expansion_factor'],
+            mamba_moe_layers=json_config['mamba_moe_layers'],
+            ffn_hidden_size=json_config['ffn_hidden_size'],
+            bias = json_config['add_bias_linear'],
+            add_bias_linear = json_config['add_bias_linear'],
+            gated_linear_unit = json_config['swiglu']
+        )
 
-        model = MambaModel(config=config, max_sequence_length= args.max_position_embeddings, **kwargs)
+        model = MambaModel(config=config, max_sequence_length=json_config['max_sequence_length'], **kwargs)
 
         # make keys match
         model_state_dict["embedding.weight"] = model_state_dict["embedding.word_embeddings.weight"].clone()
         model_state_dict["output_layer.weight"] = model_state_dict["embedding.word_embeddings.weight"].clone()
         model_state_dict["embedding.word_embeddings.weight"] = None
         model_state_dict.pop("embedding.word_embeddings.weight")
-        model_state_dict["embedding.position_embeddings.weight"] = None
-        model_state_dict.pop("embedding.position_embeddings.weight")
         model.load_state_dict(loaded["model"])
         return model
 
