@@ -38,3 +38,15 @@ Our pretrained models are uploaded to [our HuggingFace](https://huggingface.co/Z
 
 ## Usage
 
+```
+from mamba_model import MambaModel
+import json
+import torch
+
+model = MambaModel.from_pretrained_checkpoint("1.5b.pt","1.5b_config.json")
+model = model.cuda().half()
+inputs = torch.tensor([1,2]).cuda().long().unsqueeze(0)
+out = model(inputs)
+```
+
+
