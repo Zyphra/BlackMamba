@@ -7,7 +7,7 @@ from transformers.utils.hub import cached_file
 
 def load_config_hf(model_name):
     resolved_archive_file = cached_file(model_name, CONFIG_NAME, _raise_exceptions_for_missing_entries=False)
-    return json.load(open(resolved_archive_file))
+    return json.loads(open(resolved_archive_file))
 
 
 def load_state_dict_hf(model_name, device="cpu"):
