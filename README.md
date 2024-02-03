@@ -7,7 +7,7 @@
 
 > **BlackMamba: Mixture of Experts for State-space models**\
 > Quentin Anthony*, Yury Tokpanov*, Paolo Glorioso*, Beren Millidge*\
-> Paper:
+> Paper: https://www.zyphra.com/blackmamba
 
 ## About
 In this repository we provide inference and generation code for our BlackMamba model. 
