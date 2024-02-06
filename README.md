@@ -42,7 +42,7 @@ Our pretrained models are uploaded to [our HuggingFace](https://huggingface.co/Z
 from mamba_model import MambaModel
 import torch
 
-model = MambaModel.from_pretrained(checkpoint_name="1.5b.pt", config_name="1.5b_config.json")
+model = MambaModel.from_pretrained(pretrained_model_name="Zyphra/BlackMamba-2.8B")
 model = model.cuda().half()
 inputs = torch.tensor([1, 2]).cuda().long().unsqueeze(0)
 out = model(inputs)
