@@ -130,7 +130,7 @@ class MambaModel(nn.Module):
     def from_pretrained(cls, pretrained_model_name = None, checkpoint_name=None, config_name=None, **kwargs):
         if pretrained_model_name is not None:
             json_config = load_config_hf(pretrained_model_name)
-            model_state_dict = load_state_dict_hf(pretrained_model_name)
+            model_state_dict = load_state_dict_hf(pretrained_model_name)["model"]
         elif checkpoint_name is not None and config_name is not None:
             with open(config_name, 'r') as f:
                 jsonstr = f.read()
