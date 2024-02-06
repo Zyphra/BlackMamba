@@ -130,16 +130,15 @@ class MambaModel(nn.Module):
     def from_pretrained(cls, pretrained_model_name = None, checkpoint_name=None, config_name=None, **kwargs):
         if pretrained_model_name is not None:
             json_config = load_config_hf(pretrained_model_name)
-            model_state_dict = load_state_dict_hf(pretrained_model_name)
+            loaded = load_state_dict_hf(pretrained_model_name)
         elif checkpoint_name is not None and config_name is not None:
             with open(config_name, 'r') as f:
                 jsonstr = f.read()
                 json_config = json.loads(jsonstr)
             loaded = torch.load(checkpoint_name, map_location='cpu')
-            model_state_dict = loaded["model"]
         else:
             return
-
+        model_state_dict = loaded["model"]
 
         config = MambaConfig(
             num_layers=json_config['num_layers'],
